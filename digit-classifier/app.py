@@ -11,10 +11,12 @@ class KNN:
         self.K = K
 
     """ Input: Queue with (key, occurance_count) tuple """
-    def get_most_freq(queue):
+
+    def get_most_freq(self, vector):
         most_freq = {}
 
-        while not queue.empty():
+        for item in vector:
+            label = item[1]
             if label in most_freq:
                 most_freq[label] += 1
             else:
@@ -23,9 +25,9 @@ class KNN:
         winner = None
         for key in most_freq:
             count = most_freq[key]
-            if (winner ==  None):
+            if winner == None:
                 winner = (key, count)
-            elif(winner[1] < count):
+            elif winner[1] < count:
                 winner = (key, count)
 
         return winner[0]
@@ -33,27 +35,8 @@ class KNN:
     """Fits the training data"""
     def fit(self, X_train, y_train):
         self.X_train = X_train
-        self.Y_train = y_train
+        self.y_train = y_train
         num_of_correct_classifcation = 0
-
-        n = len(X_train)
-        for i in range(n):
-            q = queue.PriorityQueue()
-            for j in range(n):
-                if i == j:
-                    continue
-                dist = self.minkowski_distance(X_train[i], X_train[j])
-                q.put((dist, y_train[j]))
-
-            k_closest_neighbours = []
-            for i in range(self.K):
-                k_closest_neighbours.append(.get())
-
-            most_freq = self.get_most_freq(k_closest_neighbours)
-            if(most_freq == y_train[i]):
-                num_of_correct_classifcation +=1
-                
-        print("Correct", num_of_correct_classifcation, num_of_correct_classifcation/len(X_train))
 
     def minkowski_distance(self, a, b, p=2):
         distance = 0.0
@@ -61,40 +44,49 @@ class KNN:
         for i in range(len(a)):
             distance += abs(a[i] - b[i]) ** p
 
-        return  distance ** (1/p)
+        return distance ** (1 / p)
 
-    def predict(self, X_tests, y_tests):
-        num_of_correct_classifcation = 0
-        for i in range(len(self.X_train)):
-            q = queue.PriorityQueue(self.K)
+    def predict(self, X_test, y_test):
+        num_of_correct_classification = 0
+        training_size = len(self.X_train)
+        testing_size = len(X_test)
 
-            for j in range(len(self.X_train)):
-                if i == j:
-                    continue
-                dist = self.minkowski_distance(self.X_train[i], self.X_train[j])
-                q.put((dist, self.y_train[j]))
+        for i in range(testing_size):
+            q = queue.PriorityQueue()
 
-            most_freq = {}
+            for j in range(training_size):
+                distance = self.minkowski_distance(X_test[i], self.X_train[j])
+                q.put((distance, self.y_train[j]))
 
-            while (q.empty() == False):
-                label = q.get()[1]
-                if(most_freq[label]):
-                    most_freq[label] += 1
-                else:
-                    most_freq[label] += 0
+            k_closest_neighbours = []
+            for index in range(self.K):
+                k_closest_neighbours.append(q.get())
+
+            print("Closest neighbour", k_closest_neighbours)
+            print("True label", y_test[i])
+            most_freq = self.get_most_freq(k_closest_neighbours)
+            print("predicted", most_freq)
+
+            if most_freq == y_test[i]:
+                num_of_correct_classification += 1
+
+        print(
+            "Correct",
+            num_of_correct_classification,
+            num_of_correct_classification / testing_size,
+        )
 
 
-def __init__():
-  mnist = datasets.load_digits()
+def main():
+    mnist = datasets.load_digits()
 
-# print(mnist.data[1])
-# print(mnist.target[1])
-# plt.matshow(mnist.images[1])
-# plt.show()
+    X_train, X_test, y_train, y_test = train_test_split(
+        mnist.data, mnist.target, random_state=42
+    )
 
-  X_train, X_test, y_train, y_test = train_test_split(mnist.data, mnist.target, random_state=0)
-  X_train = X_train[:900]
-  y_train = y_train[:900]
-  knn = KNN(4)
-  knn.fit(X_train, y_train)
-# print(knn.predict(X_test))
+    knn = KNN(4)
+    knn.fit(X_train, y_train)
+    knn.predict(X_test, y_test)
+
+if __name__ == "__main__":
+    main()
