@@ -5,13 +5,11 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from sklearn import datasets
 
-
 class KNN:
     def __init__(self, K):
         self.K = K
 
-    """ Input: Queue with (key, occurance_count) tuple """
-
+    """ Input: Vector with (key, occurance_count) tuple """
     def get_most_freq(self, vector):
         most_freq = {}
 
@@ -36,8 +34,8 @@ class KNN:
     def fit(self, X_train, y_train):
         self.X_train = X_train
         self.y_train = y_train
-        num_of_correct_classifcation = 0
 
+    # Defaults to Euclidean distance
     def minkowski_distance(self, a, b, p=2):
         distance = 0.0
 
@@ -65,7 +63,7 @@ class KNN:
             print("Closest neighbour", k_closest_neighbours)
             print("True label", y_test[i])
             most_freq = self.get_most_freq(k_closest_neighbours)
-            print("predicted", most_freq)
+            print("Predicted", most_freq)
 
             if most_freq == y_test[i]:
                 num_of_correct_classification += 1
