@@ -1,11 +1,16 @@
 import pandas as pd
 import numpy as np
 import string
+from nltk.corpus import words
 import nltk
 import math
-from pandas.core.computation.ops import isnumeric
+from sklearn.naive_bayes import MultinomialNB
 
 from sklearn.model_selection import train_test_split
+
+# https://en.wikipedia.org/wiki/Additive_smoothing
+A = 1
+D = 2
 
 def remove_punctuation_and_lower(text):
     return "".join([char for char in text if char not in string.punctuation]).lower()
@@ -21,72 +26,97 @@ class NaiveBayes:
     # Returns the probability of the words given that it's spam or not spam
     def __init__(self, min_word_occurance):
       self.MIN_WORD_OCCURANCE = min_word_occurance
+      self.word_set = set(words.words())
 
-    def P_words(self, text_list, labels):
+    def build_vocabulary(self, text_list, labels):
       if(len(text_list) != len(labels)):
         raise Exception("Inputs not same length")
 
-      dict_prob = {} # For each word in vocabulary consist P(word|!spam) and P(word|spam)
+      word_counter_dict = {}
 
       # Count number of words for both spam and not spam
       for i in range(len(text_list)):
-        text = text_list[i][0] # wtf is this, TODO: fix it
+        text = text_list[i][0] # TODO: fix this garbage
         label = labels[i]
         is_spam = True if label == 1 else False
 
         words = text.split()
         for word in words:
-          # First time seeing this word
-          if word not in dict_prob:
-            dict_prob[word] = {"spam": 1, "not_spam": 1} # Laplace smoothing with alpha=1 
+            # Not an english word
+            # if word not in self.word_set:
+              # continue
 
-          dict_prob[word]['spam' if is_spam else 'not_spam'] += 1
+            # First time seeing this word
+            if word not in word_counter_dict:
+              word_counter_dict[word] = {"spam": 0, "not_spam": 0} # Laplace smoothing with alpha=1 
 
-      # Calculating probability
-      for key in dict_prob:
-        total = dict_prob[key]['spam'] + dict_prob[key]['not_spam']
-        # TODO: Check diff values
-        # if(total < self.MIN_WORD_OCCURANCE): # Ignore words which have little amount of occurance
-          # del dict_prob[key]
-        # else:
-        dict_prob[key]['spam_prob'] = dict_prob[key]['spam'] / (total + 2) # Maybe total needs to be total emails
-        dict_prob[key]['not_spam_prob'] = dict_prob[key]['not_spam'] / (total + 2) # Tiddo
-        del dict_prob[key]['spam']
-        del dict_prob[key]['not_spam']
+            word_counter_dict[word]['spam' if is_spam else 'not_spam'] += 1
 
-      return dict_prob
+      return word_counter_dict
 
     def predict(self, X_test, y_test):
+      correct = 0
+
       for i in range(len(X_test)):
         text = X_test[i][0] # TODO: fix this garbage
-        spam_prob = math.log(self.spam_prob_prio, math.e)
-        not_spam_prob = math.log(self.non_spam_prob_prio, math.e)
+        label = y_test[i]
+        # print(text)
 
-        for word in text:
-          if(word in self.dict_prob):
-            # Taking natural logs of probabilities to it does got to 0
-            spam_prob += math.log(self.dict_prob[word]['spam_prob'], math.e)
-            not_spam_prob += math.log(self.dict_prob[word]['not_spam_prob'], math.e)
-          else:
-            # TODO: How to handle words that was never seen before
-            pass
- 
-        print("Text:", text)
-        print(spam_prob, not_spam_prob, y_test[i])
-        print(math.e ** spam_prob, math.e ** not_spam_prob)
-        print("Less", spam_prob < not_spam_prob)
+        spam_prob =  0 #math.log(self.spam_prob_prio, math.e)
+        not_spam_prob = 0 #math.log(self.non_spam_prob_prio, math.e)
+        words = text.split()
+
+        for word in words:
+            if(word in self.word_counter_dict):
+                # Taking natural log of probabilities to it does got to 0
+                prob = (self.word_counter_dict[word]['spam'] + A) / (self.spam_counter + A * D)
+                # print("Word:", word)
+                # print(prob)
+                spam_prob += math.log(prob, math.e)
+
+                prob = (self.word_counter_dict[word]['not_spam'] + A) / (self.non_spam_counter + A * D)
+                not_spam_prob += math.log(prob, math.e)
+            else:
+                prob = A / (A * D)
+                spam_prob += math.log(prob, math.e)
+                not_spam_prob += math.log(prob, math.e)
+
+        spam_prob = spam_prob / (spam_prob + not_spam_prob) 
+        not_spam_prob = not_spam_prob / (spam_prob + not_spam_prob)
+
+        print("Spam prob", spam_prob / (spam_prob + not_spam_prob))
+        print("Not spam prob", not_spam_prob / (spam_prob + not_spam_prob))
+        print("Label:", label)
+        is_spam = spam_prob > not_spam_prob
+
+        if(label == 1 and is_spam):
+            correct += 1
+
+      print(correct / len(y_test))
 
     def fit(self, X_train, y_train):
-      self.X_train = X_train
-      self.y_train = y_train
+        self.X_train = X_train
+        self.y_train = y_train
 
-      # Building a prio
-      _, counter = np.unique(y_train, return_counts=True)
-      self.non_spam_prob_prio = counter[1] / len(y_train)
-      self.spam_prob_prio = counter[0] / len(y_train)
+        # Building a prio
+        _, counter = np.unique(y_train, return_counts=True)
+        self.spam_counter = counter[1]
+        self.non_spam_counter = counter[0]
 
-      # Creating the Bag of Words model
-      self.dict_prob = self.P_words(X_train, y_train)
+        self.spam_prob_prio = counter[1] / len(y_train)
+        self.non_spam_prob_prio = counter[0] / len(y_train)
+
+        print(self.spam_counter, self.non_spam_counter)
+
+        # Creating the Bag of Words model
+        self.word_counter_dict = self.build_vocabulary(X_train, y_train)
+        self.num_of_spam_words = 0
+        self.num_of_non_spam_words = 0
+
+        for key in self.word_counter_dict:
+          self.num_of_non_spam_words += self.word_counter_dict[key]['not_spam']
+          self.num_of_spam_words += self.word_counter_dict[key]['spam']
+
 
 
 def main():
