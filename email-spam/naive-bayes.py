@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 import string
 import nltk
+import math
+from pandas.core.computation.ops import isnumeric
+
 from sklearn.model_selection import train_test_split
 
 def remove_punctuation_and_lower(text):
@@ -13,7 +16,6 @@ def remove_stopwords(word_vector):
 
 def tokenize(text):
     return text.split()
-
 
 class NaiveBayes:
     # Returns the probability of the words given that it's spam or not spam
@@ -36,29 +38,43 @@ class NaiveBayes:
         for word in words:
           # First time seeing this word
           if word not in dict_prob:
-            dict_prob[word] = {"spam": 0, "not_spam": 0}
+            dict_prob[word] = {"spam": 1, "not_spam": 1} # Laplace smoothing with alpha=1 
 
           dict_prob[word]['spam' if is_spam else 'not_spam'] += 1
 
       # Calculating probability
-      # print(dict_prob)
-
       for key in dict_prob:
         total = dict_prob[key]['spam'] + dict_prob[key]['not_spam']
         # TODO: Check diff values
         # if(total < self.MIN_WORD_OCCURANCE): # Ignore words which have little amount of occurance
           # del dict_prob[key]
         # else:
-        dict_prob[key]['spam_prob'] = dict_prob[key]['spam'] / total
-        dict_prob[key]['not_spam_prob'] = dict_prob[key]['not_spam'] / total
+        dict_prob[key]['spam_prob'] = dict_prob[key]['spam'] / (total + 2) # Maybe total needs to be total emails
+        dict_prob[key]['not_spam_prob'] = dict_prob[key]['not_spam'] / (total + 2) # Tiddo
         del dict_prob[key]['spam']
         del dict_prob[key]['not_spam']
 
-      print(dict_prob)
       return dict_prob
 
     def predict(self, X_test, y_test):
-      pass
+      for i in range(len(X_test)):
+        text = X_test[i][0] # TODO: fix this garbage
+        spam_prob = math.log(self.spam_prob_prio, math.e)
+        not_spam_prob = math.log(self.non_spam_prob_prio, math.e)
+
+        for word in text:
+          if(word in self.dict_prob):
+            # Taking natural logs of probabilities to it does got to 0
+            spam_prob += math.log(self.dict_prob[word]['spam_prob'], math.e)
+            not_spam_prob += math.log(self.dict_prob[word]['not_spam_prob'], math.e)
+          else:
+            # TODO: How to handle words that was never seen before
+            pass
+ 
+        print("Text:", text)
+        print(spam_prob, not_spam_prob, y_test[i])
+        print(math.e ** spam_prob, math.e ** not_spam_prob)
+        print("Less", spam_prob < not_spam_prob)
 
     def fit(self, X_train, y_train):
       self.X_train = X_train
@@ -66,8 +82,8 @@ class NaiveBayes:
 
       # Building a prio
       _, counter = np.unique(y_train, return_counts=True)
-      self.non_spam_prob = counter[1] / len(y_train)
-      self.spam_prob = counter[0] / len(y_train)
+      self.non_spam_prob_prio = counter[1] / len(y_train)
+      self.spam_prob_prio = counter[0] / len(y_train)
 
       # Creating the Bag of Words model
       self.dict_prob = self.P_words(X_train, y_train)
@@ -91,7 +107,7 @@ def main():
 
     nb = NaiveBayes(3)
     nb.fit(X_train.to_numpy(), y_train.to_numpy())
-    nb.predict(X_test, y_test)
+    nb.predict(X_test.to_numpy(), y_test.to_numpy())
 
 
 if __name__ == "__main__":
