@@ -4,9 +4,8 @@ import string
 from nltk.corpus import words
 import nltk
 import math
-from sklearn.naive_bayes import MultinomialNB
-
 from sklearn.model_selection import train_test_split
+from nltk.stem.porter import PorterStemmer
 
 # https://en.wikipedia.org/wiki/Additive_smoothing
 A = 1
@@ -36,7 +35,7 @@ class NaiveBayes:
 
       # Count number of words for both spam and not spam
       for i in range(len(text_list)):
-        text = text_list[i][0] # TODO: fix this garbage
+        text = text_list[i]
         label = labels[i]
         is_spam = True if label == 1 else False
 
@@ -48,68 +47,76 @@ class NaiveBayes:
 
             # First time seeing this word
             if word not in word_counter_dict:
-              word_counter_dict[word] = {"spam": 0, "not_spam": 0} # Laplace smoothing with alpha=1 
+              word_counter_dict[word] = {"spam": 0, "not_spam": 0}
 
             word_counter_dict[word]['spam' if is_spam else 'not_spam'] += 1
 
       return word_counter_dict
 
-    def predict(self, X_test, y_test):
+    def predict(self, datas, labels):
+      # datas = datas[:2]
+      # labels = labels[:2]
+
       correct = 0
 
-      for i in range(len(X_test)):
-        text = X_test[i][0] # TODO: fix this garbage
-        label = y_test[i]
-        # print(text)
+      for i in range(len(datas)):
+        text = datas[i]
+        label = labels[i]
+        print("Text:", text)
 
-        spam_prob =  0 #math.log(self.spam_prob_prio, math.e)
-        not_spam_prob = 0 #math.log(self.non_spam_prob_prio, math.e)
+        spam_prob = math.log(self.positive_prior_prob)
+        not_spam_prob = math.log(self.negative_prior_prob)
         words = text.split()
 
         for word in words:
             if(word in self.word_counter_dict):
-                # Taking natural log of probabilities to it does got to 0
-                prob = (self.word_counter_dict[word]['spam'] + A) / (self.spam_counter + A * D)
-                # print("Word:", word)
-                # print(prob)
-                spam_prob += math.log(prob, math.e)
+                # Taking natural log of probabilities so it does not go to 0
+                num_positive = self.word_counter_dict[word]['spam']
+                not_num_positive = self.word_counter_dict[word]['not_spam']
 
-                prob = (self.word_counter_dict[word]['not_spam'] + A) / (self.non_spam_counter + A * D)
-                not_spam_prob += math.log(prob, math.e)
+                prob = (num_positive + A) / (num_positive + not_num_positive + A * D)
+                spam_prob += math.log(prob)
+
+                prob = (not_num_positive + A) / (num_positive + not_num_positive + A * D)
+                not_spam_prob += math.log(prob)
             else:
-                prob = A / (A * D)
-                spam_prob += math.log(prob, math.e)
-                not_spam_prob += math.log(prob, math.e)
+                # Never seen the word in traning set
+                pass
 
-        spam_prob = spam_prob / (spam_prob + not_spam_prob) 
-        not_spam_prob = not_spam_prob / (spam_prob + not_spam_prob)
+        print("Log sum of probabilities:", spam_prob, not_spam_prob)
+        final_spam_prob = 1 - (spam_prob / (spam_prob + not_spam_prob))
+        final_not_spam_prob = 1 - (not_spam_prob / (spam_prob + not_spam_prob))
 
-        print("Spam prob", spam_prob / (spam_prob + not_spam_prob))
-        print("Not spam prob", not_spam_prob / (spam_prob + not_spam_prob))
         print("Label:", label)
-        is_spam = spam_prob > not_spam_prob
+        print("Spam probability", final_spam_prob)
+        print("Not spam probability", final_not_spam_prob)
 
-        if(label == 1 and is_spam):
+        is_spam = final_spam_prob > final_not_spam_prob
+        print("Decision is spam:", is_spam)
+
+        print("\n")
+
+        if(is_spam and label == 1 or not is_spam and label == 0):
             correct += 1
 
-      print(correct / len(y_test))
+      print("Accuracy", correct / len(labels))
 
-    def fit(self, X_train, y_train):
-        self.X_train = X_train
-        self.y_train = y_train
+    def fit(self, data, label):
+        self.data = data
+        self.label = label
 
         # Building a prio
-        _, counter = np.unique(y_train, return_counts=True)
-        self.spam_counter = counter[1]
-        self.non_spam_counter = counter[0]
+        _, counter = np.unique(label, return_counts=True)
+        self.num_positive = counter[1]
+        self.num_negative = counter[0]
 
-        self.spam_prob_prio = counter[1] / len(y_train)
-        self.non_spam_prob_prio = counter[0] / len(y_train)
+        self.positive_prior_prob = counter[1] / len(label)
+        self.negative_prior_prob = counter[0] / len(label)
 
-        print(self.spam_counter, self.non_spam_counter)
+        print("Prior belief", self.positive_prior_prob, self.negative_prior_prob)
 
         # Creating the Bag of Words model
-        self.word_counter_dict = self.build_vocabulary(X_train, y_train)
+        self.word_counter_dict = self.build_vocabulary(data, label)
         self.num_of_spam_words = 0
         self.num_of_non_spam_words = 0
 
@@ -119,9 +126,30 @@ class NaiveBayes:
 
 
 
+def stemText(text):
+  ps = PorterStemmer()
+  z = []
+  for i in text:
+      z.append(ps.stem(i))
+  w = z[:]
+  z.clear()
+  return w
+
+def text_to_vector(self, text):
+    text = re.sub(r"http\S+", "", text)
+    pattern = "[^a-zA-Z0-9]"
+    text = re.sub(pattern," ",text)
+    text = text.lower()
+    text = nltk.word_tokenize(text)
+    text = [self.lemma.lemmatize(word) for word in text]
+    stopwords = nltk.corpus.stopwords.words("english")
+    text = [word for word in text if word not in stopwords]
+    text = " ".join(text)
+    return self.vectorizer.transform([text]).toarray()
+
+
 def main():
     data = pd.read_csv('./emails.csv')
-    # print(data.head())
 
     # Data cleaning
     data = data.drop_duplicates(keep = 'last')
@@ -129,15 +157,17 @@ def main():
     data['text'] = data['text'].apply(lambda text:remove_punctuation_and_lower(text))
     data['text'] = data['text'].apply(lambda text:tokenize(text))
     data['text'] = data['text'].apply(lambda text:remove_stopwords(text))
+    data['text'] = data['text'].apply(stemText)
     data['text'] = data['text'].apply(lambda text: " ".join(text))
 
-    X = data.drop(columns=['spam'])
+    X = data.text
     y = data.spam
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 42)
+
+    training_data, test_data, training_label, test_label = train_test_split(X, y, test_size = 0.2, random_state = 42)
 
     nb = NaiveBayes(3)
-    nb.fit(X_train.to_numpy(), y_train.to_numpy())
-    nb.predict(X_test.to_numpy(), y_test.to_numpy())
+    nb.fit(training_data.to_numpy(), training_label.to_numpy())
+    nb.predict(test_data.to_numpy(), test_label.to_numpy())
 
 
 if __name__ == "__main__":
