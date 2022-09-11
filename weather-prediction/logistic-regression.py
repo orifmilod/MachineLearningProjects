@@ -1,10 +1,11 @@
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import matplotlib.pyplot as plt # data visualization
-import seaborn as sns # statistical data visualization
 from sklearn.model_selection import train_test_split
 import category_encoders as ce
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
 
 def plot_data(dataframe):
     # Draw boxplots to visualize outliers
@@ -141,7 +142,12 @@ def main():
                      # pd.get_dummies(X_train.WindDir3pm)], axis=1)
 
     feature_scale(X_train, X_test)
-    print(X_train.describe())
+
+    logreg = LogisticRegression(solver='liblinear', random_state=0)
+    logreg.fit(X_train, y_train)
+    y_pred_test = logreg.predict(X_test)
+
+    print('Model accuracy score: {0:0.4f}'. format(accuracy_score(y_test, y_pred_test)))
 
     # plot_data(df)
 
