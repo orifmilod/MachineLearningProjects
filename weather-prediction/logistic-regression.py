@@ -4,8 +4,10 @@ import matplotlib.pyplot as plt # data visualization
 from sklearn.model_selection import train_test_split
 import category_encoders as ce
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression as LR
 from sklearn.metrics import accuracy_score
+import math
+from random import random
 
 def plot_data(dataframe):
     # Draw boxplots to visualize outliers
@@ -93,6 +95,75 @@ def feature_scale(X_train, X_test):
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
+class LogisticRegression:
+    epochs = 100
+    learning_rate = 0.01
+
+    # Negative-loss likelihood is loss/cost function for Logisitc regression
+    def loss(self, label, predicion):
+        print("L", label, predicion)
+        return -((label * math.log(predicion)) + ((1 - label) * math.log(1 - predicion)))
+
+    def error(self, labels, predictions):
+        # assert len(labels) == len(predictions)
+
+        num_items = len(labels)
+        sum_of_errors = sum([self.loss(y, y_pred) for y, y_pred in zip(labels, predictions)])
+        return (1 / num_items) * sum_of_errors
+
+    def sigmoid(self, x):
+        return (1 / (1 - math.exp(-x)))
+
+    def squish(self, beta, x):
+        # assert len(beta) == len(x)
+        # Calculate the dot product and pass it in sigmoid function
+        return self.sigmoid(np.dot(beta, x))
+
+    def __init__(self, ):
+        self.beta = []
+        print(f'Starting with "beta": {self.beta}')
+
+    def fit(self, data, labels):
+        assert len(data) == len(labels)
+        self.beta = [random() for _ in range(len(data.columns))]
+
+        data = data[:1]
+        labels = labels[:1]
+
+        for epoch in range(self.epochs):
+            predicted_labels = [self.squish(self.beta, x) for x in data.to_numpy()]
+            print("Prediction", predicted_labels)
+            print(labels)
+            loss = self.error(labels, predicted_labels)
+            print(f'Epoch {epoch} --> loss: {loss}')
+
+            # Calculating gradient
+            grad = [0 for _ in range(len(self.beta))]
+
+            for x, y in zip(data, labels):
+                err = self.squish(self.beta, x) - y
+                for i, x_i in enumerate(x):
+                    grad[i] += (err * x_i)
+
+                grad = [1 / len(x) * g_i for g_i in grad]
+
+            # Take a small step in the direction of greatest decrease
+            new_beta = [b - (gb * self.learning_rate) for b, gb in zip(self.beta, grad)]
+            print("Old beta:", self.beta)
+            print("New beta:", new_beta)
+            self.beta = new_beta
+
+
+    def predict(self, data, labels):
+        predicted_labels = [self.squish(self.beta, x) for x in data]
+        counter = 0
+        for i in range(len(predicted_labels)):
+            if(predicted_labels[i] == labels[i]):
+                counter += 1
+        
+        print("Accuracy: {counter}".format(counter = counter/len(labels)))
+
+
 def main():
     data = './weatherAUS.csv'
     df = pd.read_csv(data)
@@ -123,6 +194,8 @@ def main():
     df = top_code(df, numerical)
 
     # Declare feature vector and target variable
+    df['RainTomorrow'] = df['RainTomorrow'].eq('Yes').mul(1)
+
     X = df.drop(['RainTomorrow'], axis=1)
     y = df['RainTomorrow']
     categorical.remove('RainTomorrow')
@@ -143,11 +216,16 @@ def main():
 
     feature_scale(X_train, X_test)
 
-    logreg = LogisticRegression(solver='liblinear', random_state=0)
-    logreg.fit(X_train, y_train)
-    y_pred_test = logreg.predict(X_test)
+    lr = LogisticRegression()
+    lr.fit(X_train, y_train)
+    # lr.predict(X_test, y_test)
 
-    print('Model accuracy score: {0:0.4f}'. format(accuracy_score(y_test, y_pred_test)))
+    # Sk-learn LR 
+    # logreg = LR(solver='liblinear', random_state=0)
+    # logreg.fit(X_train, y_train)
+    # y_pred_test = logreg.predict(X_test)
+
+    # print('Model accuracy score: {0:0.4f}'. format(accuracy_score(y_test, y_pred_test)))
 
     # plot_data(df)
 
