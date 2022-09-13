@@ -84,7 +84,7 @@ def fill_na(df):
         col_median = df[col].median()
         df[col].fillna(col_median, inplace=True)
 
-    categorical = [var for var in df.columns if df[var].dtype=='O']
+    categorical = [var for var in df.columns if df[var].dtype == 'O']
     for col in categorical:
         df[col].fillna(df[col].mode()[0], inplace=True)
 
@@ -94,25 +94,26 @@ def feature_scale(X_train, X_test):
     scaler = MinMaxScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
+    return X_train, X_test
+
 
 class LogisticRegression:
     epochs = 100
     learning_rate = 0.01
 
     # Negative-loss likelihood is loss/cost function for Logisitc regression
-    def loss(self, label, predicion):
-        print("L", label, predicion)
-        return -((label * math.log(predicion)) + ((1 - label) * math.log(1 - predicion)))
+    def loss(self, label, prediction):
+        # TODO: Take care of 0/1 predictions
+        return -((label * math.log(prediction)) + ((1 - label) * math.log(1 - prediction)))
 
     def error(self, labels, predictions):
         # assert len(labels) == len(predictions)
-
         num_items = len(labels)
         sum_of_errors = sum([self.loss(y, y_pred) for y, y_pred in zip(labels, predictions)])
         return (1 / num_items) * sum_of_errors
 
     def sigmoid(self, x):
-        return (1 / (1 - math.exp(-x)))
+        return (1 / (1 + math.exp(-x)))
 
     def squish(self, beta, x):
         # assert len(beta) == len(x)
@@ -121,19 +122,13 @@ class LogisticRegression:
 
     def __init__(self, ):
         self.beta = []
-        print(f'Starting with "beta": {self.beta}')
 
     def fit(self, data, labels):
         assert len(data) == len(labels)
-        self.beta = [random() for _ in range(len(data.columns))]
-
-        data = data[:1]
-        labels = labels[:1]
+        self.beta = [random() / 10 for _ in range(len(data[0]))]
 
         for epoch in range(self.epochs):
-            predicted_labels = [self.squish(self.beta, x) for x in data.to_numpy()]
-            print("Prediction", predicted_labels)
-            print(labels)
+            predicted_labels = [self.squish(self.beta, x) for x in data]
             loss = self.error(labels, predicted_labels)
             print(f'Epoch {epoch} --> loss: {loss}')
 
@@ -149,16 +144,17 @@ class LogisticRegression:
 
             # Take a small step in the direction of greatest decrease
             new_beta = [b - (gb * self.learning_rate) for b, gb in zip(self.beta, grad)]
-            print("Old beta:", self.beta)
-            print("New beta:", new_beta)
             self.beta = new_beta
 
 
     def predict(self, data, labels):
         predicted_labels = [self.squish(self.beta, x) for x in data]
+        # print("Prediciton", predicted_labels)
         counter = 0
         for i in range(len(predicted_labels)):
-            if(predicted_labels[i] == labels[i]):
+            if(predicted_labels[i] >= 0.5 and labels[i] == 1):
+                counter += 1
+            elif(predicted_labels[i] < 0.5 and labels[i] == 0):
                 counter += 1
         
         print("Accuracy: {counter}".format(counter = counter/len(labels)))
@@ -171,23 +167,16 @@ def main():
     # Exploring categorical data
     df = clean(df)
 
-    categorical = [var for var in df.columns if df[var].dtype=='O']
-    # print('The categorical variables are :', categorical)
+    categorical = [var for var in df.columns if df[var].dtype == 'O']
     categories_wo_labale = [var for var in categorical if df[var].isnull().sum() != 0]
 
     # Dropping unlabeled data
-    # TODO: what is alternative way of handlign missing labels?
+    # TODO: what is alternative way of handling missing labels?
     for category in categories_wo_labale:
         df.dropna(subset=[category], inplace=True)
 
-
     #Exploring numerical data
     numerical = [var for var in df.columns if df[var].dtype != 'O']
-    # print('The numerical variables are :', numerical)
-    # TODO: Clean up missing variables
-
-    # View summary statistics in numerical variables
-    # print(df[numerical].describe())
 
     # Feature engineering
     df = fill_na(df)
@@ -207,18 +196,19 @@ def main():
     X_train = encoder.fit_transform(X_train)
     X_test = encoder.transform(X_test)
  
-    # TODO: Check Dummy encoding vs Binary encoding performance difference
+    # TODO: Check Dummy encoding vs Binary encoding performance/practical difference
     # X_train = pd.concat([X_train[numerical], X_train[['RainToday_0', 'RainToday_1']],
                      # pd.get_dummies(X_train.Location), 
                      # pd.get_dummies(X_train.WindGustDir),
                      # pd.get_dummies(X_train.WindDir9am),
                      # pd.get_dummies(X_train.WindDir3pm)], axis=1)
 
-    feature_scale(X_train, X_test)
+
+    X_train, X_test = feature_scale(X_train, X_test)
 
     lr = LogisticRegression()
     lr.fit(X_train, y_train)
-    # lr.predict(X_test, y_test)
+    lr.predict(X_test, y_test.to_numpy())
 
     # Sk-learn LR 
     # logreg = LR(solver='liblinear', random_state=0)
