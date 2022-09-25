@@ -135,19 +135,6 @@ def stemText(text):
   z.clear()
   return w
 
-def text_to_vector(self, text):
-    text = re.sub(r"http\S+", "", text)
-    pattern = "[^a-zA-Z0-9]"
-    text = re.sub(pattern," ",text)
-    text = text.lower()
-    text = nltk.word_tokenize(text)
-    text = [self.lemma.lemmatize(word) for word in text]
-    stopwords = nltk.corpus.stopwords.words("english")
-    text = [word for word in text if word not in stopwords]
-    text = " ".join(text)
-    return self.vectorizer.transform([text]).toarray()
-
-
 def main():
     data = pd.read_csv('./emails.csv')
 
