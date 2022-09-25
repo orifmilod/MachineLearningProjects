@@ -98,7 +98,7 @@ def feature_scale(X_train, X_test):
 
 
 class LogisticRegression:
-    epochs = 100
+    epochs = 1000
     learning_rate = 0.05
 
     # Negative-loss likelihood is loss/cost function for Logisitc regression
