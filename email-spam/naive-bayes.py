@@ -27,15 +27,15 @@ class NaiveBayes:
       self.MIN_WORD_OCCURANCE = min_word_occurance
       self.word_set = set(words.words())
 
-    def build_vocabulary(self, text_list, labels):
-      if(len(text_list) != len(labels)):
+    def count_words(self, data, labels):
+      if(len(data) != len(labels)):
         raise Exception("Inputs not same length")
 
       word_counter_dict = {}
 
       # Count number of words for both spam and not spam
-      for i in range(len(text_list)):
-        text = text_list[i]
+      for i in range(len(data)):
+        text = data[i]
         label = labels[i]
         is_spam = True if label == 1 else False
 
@@ -54,15 +54,11 @@ class NaiveBayes:
       return word_counter_dict
 
     def predict(self, datas, labels):
-      # datas = datas[:2]
-      # labels = labels[:2]
-
       correct = 0
 
       for i in range(len(datas)):
         text = datas[i]
         label = labels[i]
-        print("Text:", text)
 
         spam_prob = math.log(self.positive_prior_prob)
         not_spam_prob = math.log(self.negative_prior_prob)
@@ -91,7 +87,7 @@ class NaiveBayes:
         print("Spam probability", final_spam_prob)
         print("Not spam probability", final_not_spam_prob)
 
-        is_spam = final_spam_prob > final_not_spam_prob
+        is_spam = final_spam_prob > 0.20 # final_not_spam_prob
         print("Decision is spam:", is_spam)
 
         print("\n")
@@ -101,7 +97,7 @@ class NaiveBayes:
 
       print("Accuracy", correct / len(labels))
 
-    def fit(self, data, label):
+    def train(self, data, label):
         self.data = data
         self.label = label
 
@@ -116,10 +112,11 @@ class NaiveBayes:
         print("Prior belief", self.positive_prior_prob, self.negative_prior_prob)
 
         # Creating the Bag of Words model
-        self.word_counter_dict = self.build_vocabulary(data, label)
+        self.word_counter_dict = self.count_words(data, label)
         self.num_of_spam_words = 0
         self.num_of_non_spam_words = 0
 
+        # ?? 
         for key in self.word_counter_dict:
           self.num_of_non_spam_words += self.word_counter_dict[key]['not_spam']
           self.num_of_spam_words += self.word_counter_dict[key]['spam']
@@ -153,7 +150,7 @@ def main():
     training_data, test_data, training_label, test_label = train_test_split(X, y, test_size = 0.2, random_state = 42)
 
     nb = NaiveBayes(3)
-    nb.fit(training_data.to_numpy(), training_label.to_numpy())
+    nb.train(training_data.to_numpy(), training_label.to_numpy())
     nb.predict(test_data.to_numpy(), test_label.to_numpy())
 
 
