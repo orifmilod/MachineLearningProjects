@@ -10,9 +10,9 @@ from nltk.stem.porter import PorterStemmer
 A = 1
 D = 2
 
-def remove_punctuation_and_lower(text):
+def rm_punctuation_and_digits(text):
   try:
-    return "".join([char for char in text if char not in string.punctuation]).lower()
+    return "".join([char for char in text if char not in string.punctuation + string.digits]).lower()
   except:
     print("Error:", text)
 
@@ -51,6 +51,7 @@ class NaiveBayes:
         label = labels[i]
         is_negative = True if label == 0 else False
 
+        print('text', type(text))
         words = text.split()
         for word in words:
             # Not an english word
@@ -94,11 +95,10 @@ class NaiveBayes:
         # print("Log sum of probabilities:", negative_prob, positive_prob)
         final_negative_prob = 1 - (negative_prob / (negative_prob + positive_prob))
 
-        print(text)
         print("Label:", label)
         print("Spam probability", final_negative_prob)
 
-        is_negative = final_negative_prob > 0.50 # final_not_spam_prob
+        is_negative = final_negative_prob > 0.55 # final_not_spam_prob
         print("Decision is negative:", is_negative)
 
         print("\n")
@@ -135,12 +135,13 @@ def preprocess(data):
   data.feedback.replace(["Positive", "Negative"], [1, 0], inplace=True)
 
   # Data cleaning
-  data["text"] = data["text"].apply(lambda text:remove_punctuation_and_lower(text))
+  data["text"] = data["text"].apply(lambda text:rm_punctuation_and_digits(text))
   data["text"] = data["text"].apply(lambda text:tokenize(text))
   data["text"] = data["text"].apply(lambda text:remove_stopwords(text))
-  data["text"] = data["text"].apply(stemText)
+  # data["text"] = data["text"].apply(stemText) - why does stemming hurt the accuracy?
   data["text"] = data["text"].apply(lambda text: " ".join(text))
-
+  data.drop_duplicates(subset=['text'])
+  data.drop(data[data.text == ""].index, inplace=True)
   return data
 
 def main():
